@@ -1,0 +1,231 @@
+DATABASE CONFIG
+
+db_config = {
+    "username" : "",
+    "host": "",
+    "port": "",
+    "password": ""
+}
+
+
+
+
+1)What are the best cities for me to live in if I like [insert type of food here] food?
+  WITH cityCuisine (city, state, cuisine) AS (
+            (SELECT DISTINCT C.city, C.state, VR.cuisine
+            FROM City C JOIN VegeRestaurant VR ON C.city=VR.city
+            WHERE (VR.cuisine LIKE '%${cuisine}%')
+            AND ABS (C.lat - VR.latitude) <= 0.5
+            AND ABS (C.lng - VR.longitude) <= 0.5)
+            UNION
+            (SELECT DISTINCT C.city, C.state, MR.cuisine
+            FROM City C JOIN MichelinRestaurant MR ON C.city=MR.city
+            WHERE (MR.cuisine LIKE '%${cuisine}%' AND MR.country='United States')
+            AND ABS (C.lat - MR.latitude) <= 0.5
+            AND ABS (C.lng - MR.longitude) <= 0.5)
+        )
+        SELECT DISTINCT C.city, C.state
+        FROM cityCuisine C
+        GROUP BY C.city, C.state
+        ORDER BY COUNT(*) DESC;
+
+
+2) What are the best cities for me to live in if my budget is [insert budget] a month?
+
+  WITH costAverages (city, neighborhood, price_per_night) AS (
+            SELECT A.city, A.neighborhood_group, ROUND(AVG(A.price_per_night), 2) AS price
+            FROM
+            (SELECT city, neighborhood_group, price_per_night
+            FROM Airbnb
+            UNION
+            SELECT city, neighborhood_group, price_per_night
+            FROM Airbnb_2) A
+            WHERE A.price_per_night * 30  <= '${budget}' AND NOT neighborhood_group='Other Cities'
+            GROUP BY city, neighborhood_group
+        ) SELECT * FROM costAverages WHERE city NOT LIKE '%,%' ORDER BY price_per_night DESC;
+
+
+
+3)Which (N) cities have the cleanest air? 
+
+  WITH cityPol (city, state, SO2_AQI, NO2_AQI, CO_AQI) AS (
+        SELECT P.city, P.state, AVG(P.SO2_AQI), AVG(NO2_AQI), AVG(CO_AQI)
+         FROM PollutionInfo P
+         GROUP BY P.city
+     )
+     SELECT DISTINCT P.city, P.state
+     FROM cityPol P
+     WHERE NOT city='Not in a city' AND city NOT LIKE '%,%'
+     ORDER BY P.NO2_AQI, P.SO2_AQI, P.CO_AQI
+     LIMIT ${N}; 
+
+
+LIMIT 10;
+
+4)Which cities are vegetarian / vegan friendly? (Have the most restaurants for those groups)
+
+SELECT C.city, C.state
+        FROM VegeRestaurant VR JOIN City C on VR.city = C.city
+        WHERE ABS (C.lat - VR.latitude) <= 0.5 AND ABS (C.lng - VR.longitude) <= 0.5  AND VR.city NOT LIKE '%,%'
+        GROUP BY C.city
+        ORDER BY COUNT(DISTINCT restaurant_id) DESC
+
+
+5)Which cities are the best for people who would like to live in proximity to Michelin star Restaurants? 
+
+ WITH cityMichelin (city, state, count) AS (
+        SELECT DISTINCT C.city, C.state, COUNT(*)
+        FROM MichelinRestaurant MR
+            JOIN City C
+                ON (C.city=MR.city)
+        WHERE ABS(C.lat - MR.latitude) <= 0.5 AND ABS(C.lng - MR.longitude) <= 0.5 AND MR.country='United States'
+        GROUP BY C.city, C.state
+    )
+    SELECT C.city, C.state
+    FROM cityMichelin C
+    WHERE C.count > 0 AND C.city NOT LIKE '%,%'
+    ORDER BY C.count DESC;
+
+
+    6)Which cities are the best for individuals that want to have an entire apartment for themselves vs are fine with just having a private room? User will press button for either apartment or private room.
+
+    SELECT city, neighborhood_group AS neighborhood
+    FROM (SELECT * FROM Airbnb UNION SELECT * FROM Airbnb_2) A
+    WHERE room_type='${room}' AND city NOT LIKE '%,%'
+    GROUP BY city, neighborhood_group
+    ORDER BY COUNT(DISTINCT id) DESC;
+
+
+
+    7) Out of all cities (including state), which have the highest number of schools and vegetarian Thai / Indian restaurants? 
+
+        WITH cityCuisine (city, state, cuisine) AS (
+        (SELECT DISTINCT C.city, C.state, VR.cuisine
+        FROM City C JOIN VegeRestaurant VR ON C.city=VR.city
+        WHERE (VR.cuisine LIKE '${'%' + cuisine + '%'}')
+        AND ABS (C.lat - VR.latitude) <= 0.5
+        AND ABS (C.lng - VR.longitude)<= 0.5)
+        UNION
+        (SELECT DISTINCT C.city, C.state, MR.cuisine
+        FROM City C JOIN MichelinRestaurant MR ON C.city=MR.city
+        WHERE (MR.cuisine LIKE '${'%' + cuisine + '%'}' AND MR.country='United States')
+        AND ABS (C.lat - MR.latitude) <= 0.5
+        AND ABS (C.lng - MR.longitude)<= 0.5)
+    )
+    SELECT DISTINCT C.city, C.state
+    FROM cityCuisine C
+    JOIN (
+    SELECT DISTINCT S.city, S.state, COUNT(*) AS num_schools
+        FROM (SELECT S.city, S.state FROM SchoolLocation S) S
+        GROUP BY S.City
+    ) S
+        ON C.city=S.city
+    JOIN (
+        SELECT DISTINCT city,
+                        state,
+                        AVG(SO2_AQI) AS SO2_AQI,
+                        AVG(NO2_AQI) AS NO2_AQI,
+                        AVG(CO_AQI) AS CO_AQI
+        FROM PollutionInfo
+        GROUP BY city, state
+    ) P
+        ON P.city=C.city
+    JOIN (
+        SELECT A.city, AVG(price_per_night)
+        FROM ( (SELECT A.city, A.price_per_night
+                FROM Airbnb A
+                WHERE A.price_per_night < '${price_per_night}')
+                UNION
+                (SELECT A.city, A.price_per_night
+                FROM Airbnb_2 A
+                WHERE A.price_per_night < '${price_per_night}') ) A
+                GROUP BY A.city
+        ) M
+        ON C.city=M.city
+    WHERE (P.SO2_AQI < '${SO2_AQI}' AND P.NO2_AQI < '${NO2_AQI}' AND P.CO_AQI < '${CO_AQI}')  AND C.city NOT LIKE '%,%'
+    GROUP BY C.city, C.state
+    ORDER BY COUNT(*) DESC, COUNT(S.num_schools) DESC
+    LIMIT 5;
+
+    8) Return a list of cities that are a top city in NO2 pollution AND/OR S02 pollution AND/OR a top city in CO pollution indexes.
+
+
+
+        SELECT city, state 
+    FROM (SELECT city, state, AVG(SO2_AQI)
+          FROM PollutionInfo
+          WHERE NOT city='Not in a city'  AND city NOT LIKE '%,%'
+          AND SO2_AQI > 70
+          GROUP BY city, state
+          ORDER BY AVG(SO2_AQI) DESC
+          LIMIT 50) so2
+    UNION
+    SELECT city, state 
+    FROM (SELECT city, state, AVG(NO2_AQI)
+          FROM PollutionInfo
+          WHERE NOT city='Not in a city' AND NO2_AQI > 70 AND city NOT LIKE '%,%'
+          GROUP BY city, state
+          ORDER BY AVG(NO2_AQI) DESC
+          LIMIT 50) no2
+    UNION
+    SELECT city, state 
+    FROM (SELECT city, state, AVG(CO_AQI)
+          FROM PollutionInfo
+          WHERE NOT city='Not in a city' AND CO_AQI > 70 AND city NOT LIKE '%,%'
+          GROUP BY city, state
+          ORDER BY AVG(CO_AQI) DESC
+          LIMIT 50) co;
+
+9) For each city and state provide how many private and public schools are in that city, and order the results in descending order of the cities with highest ratio of the total city population in school (K-12 & University)
+
+    SELECT C.city, C.state, COUNT(IF(SL.is_private = 1, SL.Objectid, NULL)) AS private_count, COUNT(IF(SL.is_private = 0, SL.Objectid, NULL)) AS public_count
+FROM  (SELECT city, state, population FROM City) C
+INNER JOIN (SELECT SchoolLocation.Objectid, SchoolLocation.city, SC.state, SchoolLocation.is_private FROM SchoolLocation JOIN StateCodes SC on SchoolLocation.state = SC.code) SL ON (C.city = SL.city AND SL.state = C.state)
+INNER JOIN (SELECT Objectid, population, is_private FROM SchoolStats) SS ON (SL.Objectid = SS.Objectid AND SL.is_private = SS.is_private)
+GROUP BY SL.city, SL.state, C.population
+ORDER BY  SUM(SS.population) / C.population DESC;
+
+
+
+10) Out of all restaurants in 
+   cities where the AQI indexes are less
+   than X, find the restaurants that happen to be 
+   vegan, but not Michelin star, 
+   and where the stay per night is less than D dollars.
+
+
+   SELECT DISTINCT R.name, P.city, P.state
+            FROM (
+                (SELECT DISTINCT VR.name, C.city, C.state
+                FROM City C
+                    JOIN VegeRestaurant VR
+                        ON C.city=VR.city
+                    WHERE (ABS (C.lat - VR.latitude) <= 0.5
+                    AND ABS (C.lng - VR.longitude) <= 0.5))
+                    UNION
+                (SELECT DISTINCT MR.name, C.city, C.state
+                FROM City C
+                    JOIN MichelinRestaurant MR
+                        ON C.city=MR.city
+                    WHERE (ABS (C.lat - MR.latitude) <= 0.5
+                    AND ABS (C.lng - MR.longitude)<= 0.5) AND MR.country='United States')
+                ) R
+                JOIN (
+                    SELECT P.city, P.state,
+                        AVG(P.SO2_AQI) AS SO2_AQI,
+                        AVG(NO2_AQI) AS NO2_AQI,
+                        AVG(CO_AQI) AS CO_AQI
+                    FROM PollutionInfo P
+                    GROUP BY P.city
+                ) P
+                    ON P.city=R.city
+                JOIN ( (SELECT A.city, A.price_per_night 
+                        FROM Airbnb A 
+                        WHERE A.price_per_night < '${price_per_night}')
+                    UNION (SELECT A.city, A.price_per_night 
+                        FROM Airbnb_2 A 
+                        WHERE A.price_per_night < '${price_per_night}') ) A
+                    ON P.city=A.city
+                    WHERE P.SO2_AQI < '${SO2_AQI}' 
+                    AND P.NO2_AQI < '${NO2_AQI}' 
+                    AND P.CO_AQI < '${CO_AQI}' AND P.city NOT LIKE '%,%';

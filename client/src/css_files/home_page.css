@@ -1,0 +1,111 @@
+/*************************************
+* This file provides CSS styling for 
+* our website.
+*************************************/
+
+/*
+* Make sure text is relative.
+*/
+.head-text {
+  position: relative;
+}
+
+/*
+* For home page set 
+* rules for the text.
+*/
+.text-on-image {
+  color: white;
+  line-height: 90%;
+  text-align: center;
+  font-size: 90px;
+  font-weight: bold;
+}
+
+/*
+* For home page set 
+* rules for the text.
+*/
+.description {
+  color: white;
+  line-height: 90%;
+  left: 30%;
+  right: 30%;
+  text-align: center;
+  font-size: 30px;
+  font-weight: bold;
+}
+
+/*
+* Set the font size.
+*/
+.filter-white {
+  font-size: 20px;
+}
+
+/*
+* Set the font size and color.
+*/
+.filter-white2 {
+  font-size: 20px;
+  color: white;
+  font-weight: bold;
+}
+
+/*
+* Set the background color
+*/
+.multiple_choice {
+  background-color: white;
+}
+
+
+/*
+* Set the button information
+*/
+.button {
+  transition: all .5s ease;
+  border-radius: 15px;
+  background-color: rgb(99, 176, 204);
+  margin-right: 6px;
+  margin-left: 6px;
+}
+
+.button:hover {
+  background-color: rgb(81, 205, 250);
+  color: white;
+}
+
+.loginbutton {
+  transition: all .5s ease;
+  border: 1px solid white;
+  border-radius: 15px;
+  background-color: rgb(99, 176, 204);
+}
+
+.loginbutton:hover {
+  background-color: rgb(81, 205, 250);
+  color: white;
+}
+
+/*
+* Change the navbar colorr
+*/
+.color-nav {
+  background-color: rgb(99, 176, 204);
+}
+
+/*
+* Change the title font
+*/
+.title {
+  font-size: 20px;
+  font-color: black;
+}
+
+/*
+* Change the container size
+*/
+.container {
+  height: 500px;
+}

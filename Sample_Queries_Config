@@ -1,0 +1,174 @@
+
+DATABASE CONFIG
+
+db_config = {
+    "username" : "",
+    "host": "",
+    "port": "",
+    "password": ""
+}
+
+
+
+
+
+
+1)What are the best cities for me to live in if I like [insert type of food here] food?
+
+WITH cityCuisine (city, state, cuisine) AS (
+    (SELECT DISTINCT C.city, C.state, VR.cuisine
+    FROM City C JOIN VegeRestaurant VR ON C.city=VR.city)
+    UNION
+    (SELECT DISTINCT C.city, C.state, MR.cuisine
+     FROM City C JOIN MichelinRestaurant MR ON C.city=MR.city)
+)
+SELECT DISTINCT C.city, C.state
+FROM cityCuisine C
+WHERE (C.cuisine LIKE '%French%')
+ORDER BY C.city, C.state;
+
+2)What are the best cities for me to live in if my budget is [insert budget] a month?
+	WITH costAverages (city, average_night_cost) AS (
+		SELECT city, AVG(price_p_night) AS average_night_cost
+		FROM Airbnb
+		GROUP BY city
+),
+SELECT city, average_night_cost 
+FROM costAverages 
+WHERE average_night_cost * 30  <= '${budget}'
+
+
+3)Which (N) cities have the cleanest air? 
+
+SELECT DISTINCT C.city, C.state
+FROM City C JOIN PollutionInfo P ON C.city=P.city
+ORDER BY P.NO2_AQI, P.SO2_AQI, P.CO_AQI
+LIMIT 10;
+
+4)Which cities are vegetarian / vegan friendly? (Have the most restaurants for those groups)
+
+
+SELECT city, COUNT(DISTINCT restaurant_id) AS num_of_veg_restaurants
+	FROM VegeRestaurant 
+	GROUP BY city
+	ORDER BY  COUNT(DISTINCT restaurant_id) DESC  
+
+
+5)Which cities are the best for people who would like to live in proximity to Michelin star Restaurants? [changed] 
+
+WITH cityMichelin (city, state, michelin_restaurant) AS (
+    SELECT DISTINCT C.city, C.state, MR.name
+    FROM City C JOIN MichelinRestaurant MR ON C.city=MR.city
+)
+SELECT C.city, C.state
+FROM cityMichelin C
+GROUP BY C.city, C.state
+HAVING COUNT(*) > 1
+ORDER BY COUNT(*) DESC
+
+
+6)Which cities are the best for individuals that want to have an entire apartment for themselves vs are fine with just having a private room? User will press button for either apartment or private room.
+
+SELECT city, COUNT(DISTINCT id) AS num_of_pref_listings 
+FROM Airbnb 
+WHERE room_type == '${room type preference}'
+GROUP BY city 
+ORDER BY COUNT(DISTINCT id) DESC 
+
+
+7)Out of all cities (including state), which have the highest number of schools and vegetarian Thai / Indian restaurants? [ needs more complexity ] 
+
+WITH cityCuisine (city, state, cuisine) AS (
+    (SELECT DISTINCT C.city, C.state, VR.cuisine
+    FROM City C JOIN VegeRestaurant VR ON C.city=VR.city)
+    UNION
+    (SELECT DISTINCT C.city, C.state, MR.cuisine
+     FROM City C JOIN MichelinRestaurant MR ON C.city=MR.city)
+), citySchools (city, state, num_schools) AS (
+	SELECT DISTINCT C.city, C.state, COUNT(*) AS num_schools
+    FROM City C JOIN Schools S ON C.city=S.city
+    GROUP BY C.city
+)
+SELECT DISTINCT C.city, C.state
+FROM cityCuisine C JOIN citySchools S ON C.city=S.city
+WHERE (C.cuisine LIKE '%Thai%' OR C.cuisine LIKE '%Indian%')
+GROUP BY C.city, C.state
+ORDER BY COUNT(*) DESC, S.num_schools DESC;
+
+8)What percentage of US cities have at least [insert number of schools], [insert index of NO2], [insert population]
+
+
+WITH  schools_by_state (city, state, num_schools) AS (
+	SELECT city, state , SUM(Object_id) AS num_schools FROM
+	Schools
+		WHERE  Start_grade IN ('PK', 'KG', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12')
+		GROUP BY city, state
+		HAVING  SUM(Object_id) >= 1
+),
+city_pop (city, state, population) AS(
+	SELECT city, state, population FROM
+	City
+	WHERE population >= 100
+
+),
+air_NO2 (city, state, no2_index) AS (
+	SELECT city, state, NO2_AQI
+	FROM PollutionInfo
+	WHERE NO2_AQI <=  90
+	GROUP BY city, state
+)
+SELECT C.city, C.state, S.num_schools, A.no2_index
+	FROM city_pop C INNER JOIN schools_by_state S ON lower(C.city) = lower(S.city)
+		INNER JOIN air_NO2 A
+			ON lower(C.city) = lower(A.city) AND lower(C.state) = lower(A.state);
+
+
+
+
+
+9)Is there a correlation between the ratio of the population in cities that are adolescents and the price of Airbnbs ? For each city, list the city name, the ratio of the population that are in grades K-12, and the maximum price of an Airbnb in that city. Are cities with children cheaper or more expensive?
+WITH adolescents_sum (city, state,num_of_young) AS (
+SELECT city, state , SUM(Population) AS num_of_young FROM
+Schools
+WHERE Start_grade IN ('PK', 'KG', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12')
+ 
+GROUP BY city, state
+),
+city_pop (city, state, population) AS(
+SELECT city, state, population FROM
+City
+),
+airbnb_max_cost (city, max_price) AS (
+SELECT city, MAX(price_per_night) AS max_price
+FROM Airbnb
+GROUP BY city
+)
+SELECT C.city, C.state, S.num_of_young / C.population AS youth_ratio, A.max_price
+FROM city_pop C INNER JOIN adolescents_sum S ON  C.city = S.city AND C.state = S.state
+INNER JOIN airbnb_max_cost A ON C.city = A.city;
+
+10) Out of all restaurants in cities where the AQI indexes are less than X, find the restaurants that happen to be vegan, but not Michelin star, and where the stay per night is less than 200 dollars. 
+
+WITH vegeCityPol (city, restaurant_name) AS (
+SELECT DISTINCT C.city, VR.name
+FROM VegeRestaurant VR
+	JOIN City C
+		ON C.city=VR.city
+			JOIN PollutionInfo P
+				ON C.city=P.city
+WHERE P.SO2_AQI < 80
+	AND P.NO2_AQI < 80
+		AND P.CO_AQI < 80
+)
+SELECT VCP.restaurant_name
+FROM vegeCityPol VCP
+JOIN Airbnb A
+ON VCP.city=A.city
+JOIN City C
+ON C.city=VCP.city
+WHERE VCP.restaurant_name NOT IN (
+    (SELECT MR.name FROM MichelinRestaurant MR)
+) AND A.price_per_night < 500000;
+
+
+

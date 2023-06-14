@@ -1,0 +1,1 @@
+https://public.opendatasoft.com/explore/dataset/airbnb-listings/export/?disjunctive.host_verifications&disjunctive.amenities&disjunctive.features&q=united+states&refine.country=United+States&location=2,13.23995,15.29297&basemap=jawg.light

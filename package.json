@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "bingmaps-react": "^1.2.10",
+    "newsapi": "^2.4.1"
+  }
+}

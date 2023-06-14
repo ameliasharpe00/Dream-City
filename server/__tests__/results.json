@@ -1,0 +1,15 @@
+{
+	"LosAngelesDetails" : [{"lat" : 34, "lng" : -118}],
+	"SeattleDetails" : [{"lat" : 48, "lng" : -122}],
+	"AQIRankingCity" : {"city" : "Vandenberg Air Force Base", "state" : "California"}, 
+	"MostVeggieCity" : {"city" : "New York", "state" : "New York"},
+	"MostMichCity" : {"city" : "New York", "state": "New York"},
+	"PrivateRoomCity" : {"city": "New York City", "neighborhood": "Brooklyn"}, 
+	"HotelRoomCity" : {"city": "New York City", "neighborhood": "Manhattan"},
+	"FilterCity1" : {"city": "New York", "state": "New York"},
+	"FilterCity2" : {"city": "New York", "state": "New York"},
+	"FilterRes" : {"city": "New York", "name": "Hakkasan", "state": "New York"},
+	"PollutedCity" : {"city": "West Los Angeles", "state": "California"},
+	"CitiesRes": {"city": "San Francisco", "county_name": "San Francisco", "lat": 38, "lng": -122, "population": 3592294, "state": "California"},
+	"CitiesRes2": { "city": "Los Angeles", "county_name": "Los Angeles", "lat": 34, "lng": -118, "population": 12750807, "state": "California"}
+}
